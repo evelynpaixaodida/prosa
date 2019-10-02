@@ -21,6 +21,60 @@ All text above must be included in any redistribution
 LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 
 // which pin to use for reading the sensor? can use any pin!
+
+# define LED_AMARELO A1
+
+
+# define LED_VERDE    A2
+
+
+# define APAGADO LOW
+
+# define ACESO    HIGH
+
+
+# define BUZZER 5
+
+
+# define SENSOR_MIN 7
+
+
+# define SENSOR_MAX 8
+
+
+
+# define BOMBA 9
+
+
+# define LIGADA LOW
+
+
+# define DESLIGADA HIGH
+
+
+// Estados do reservatório
+
+
+# define VAZIO 0
+
+# define INTERMEDIÁRIO 1
+
+# define CHEIO 2
+
+# define DEFEITO 3
+
+char não assinado novo ( unsigned char novo_estado);
+
+// indica transição de estado do reservatório
+
+transicao booleano = verdadeiro ;
+
+// estado do reservatorio
+
+sem assinatura int reservatorio = novo (VAZIO);
+
+// funçao de setup apenas 1 vez na inicialização do programa.
+
 #define FLOWSENSORPIN 2
 
 // count how many pulses!
@@ -63,9 +117,27 @@ void useInterrupt(boolean v) {
 }
 
 void setup() {
+
+
+ // inicializa os led sinalizadores
+ pinMode (LED_VERDE, OUTPUT);
+ pinMode (LED_AMARELO, OUTPUT);
+
+
+ // inicializa o pino da bomba como saída
+ pinMode (BOMBA, OUTPUT);
+
+
+ // liga os resistores de puxar dos pinos dos sensores
+ pinMode (SENSOR_MAX, INPUT_PULLUP);
+ pinMode (SENSOR_MIN, INPUT_PULLUP);  
+
+// função que continuamente se inicia na inicialização do programa.
+
    Serial.begin(9600);
    Serial.print("Flow sensor test!");
    lcd.begin(16, 2);
+// função do sensor de fluxo   
    
    pinMode(FLOWSENSORPIN, INPUT);
    digitalWrite(FLOWSENSORPIN, HIGH);
@@ -75,6 +147,115 @@ void setup() {
 
 void loop()                     // run over and over again
 { 
+
+ // o ósquio máximo e mínimo continuamente
+ boolean min, max;
+ min = sensor_min ();
+ max = sensor_max (); 
+
+
+
+ // aciona os leds indicativos de cada um dos sensores
+ led_amarelo (! min);
+ led_verde (! max);  
+
+
+
+ // monitora o estado de defeito
+ if(!max && min){
+   reservatorio = novo(DEFEITO);       
+ }
+
+ // trata cada um dos estados do reservatório!
+ switch(reservatorio){
+   case VAZIO:
+     if(houve_transicao()){
+       bomba(LIGADA);
+     }         
+     if(min){
+       reservatorio = novo(INTERMEDIARIO);
+     }   
+   break;
+  
+   case INTERMEDIARIO:
+     if(houve_transicao()){
+       // nada muda ao entrar ou sair deste estado
+     }
+     if(max){
+       reservatorio = novo(CHEIO);
+     }             
+     if(!min){
+       reservatorio = novo(VAZIO);
+     }            
+   break;
+  
+   case CHEIO:
+     if(houve_transicao()){
+       bomba(DESLIGADA);
+     }
+     if(!max){
+       reservatorio = novo(INTERMEDIARIO);
+     }                 
+   break;
+  
+   case DEFEITO:   
+     if(houve_transicao()){
+       bomba(DESLIGADA);       
+       buzzer(50);
+     }
+     if(max && min){
+       reservatorio = novo(VAZIO);
+       buzzer(0);                 
+     }
+   break;
+ }   
+}
+
+unsigned char houve_transicao(){
+ if(transicao){
+   transicao = false;
+   return true;
+ }
+ return false;
+}
+
+unsigned char novo(unsigned char novo_estado){
+ transicao = true;
+ return novo_estado;
+}
+
+// liga o buzzer
+void buzzer(unsigned char pwm){
+ analogWrite(BUZZER, pwm); 
+}
+
+// acende ou apaga o led amarelo
+void led_amarelo(boolean estado){
+ digitalWrite(LED_AMARELO, estado);
+}
+
+// acende ou apaga o led verde
+void led_verde (boolean estado) {
+ digitalWrite (LED_VERDE, estado);
+}
+
+// lê uma posição do sensor de níve máximo
+booleano sensor_max () {
+ retorno ( digitalRead (SENSOR_MAX) == BAIXO);
+}
+
+// lê uma posição do sensor de níve mínimo
+booleano sensor_min () {
+ return ( digitalRead (SENSOR_MIN) == BAIXO);
+}
+
+// aciona uma bomba que enche o reservatório
+void bomba (boolean estado) {
+   digitalWrite (BOMBA, estado);
+}
+
+// informa se houve transição de estado e ajusta a variavel de transicao
+
   lcd.setCursor(0, 0);
   lcd.print("Pulses:"); lcd.print(pulses, DEC);
   lcd.print(" Hz:");
